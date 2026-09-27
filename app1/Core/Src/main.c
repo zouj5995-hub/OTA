@@ -21,6 +21,7 @@
 #include "dma.h"
 #include "usart.h"
 #include "gpio.h"
+#include "flash_ops.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -134,24 +135,13 @@ int main(void)
                                 USART1_GetRxLength(),
                                 100U);                                                   //回显收到的原始内容
       }
-      //#1. 解锁FLASH
-			HAL_FLASH_Unlock();
+      //#1. 设置升级标志
+			if (FlashOps_SetUpgradeFlag(FLAG_ADDR, UPGRADE_FLAG) != FLASH_OPS_OK)
+			{
+			  Error_Handler();
+			}
 			
-			//#2. 擦除目标页
-			FLASH_EraseInitTypeDef erase_cfg = {0};
-			uint32_t page_error = 0;
-			erase_cfg.TypeErase   = FLASH_TYPEERASE_PAGES;
-			erase_cfg.PageAddress = FLAG_ADDR;
-			erase_cfg.NbPages     = 1;
-			HAL_FLASHEx_Erase(&erase_cfg, &page_error);
-			
-			//#3. 写入数据
-			HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, FLAG_ADDR, UPGRADE_FLAG);
-			
-			//#4. 上锁
-			HAL_FLASH_Lock();
-			
-			//#5. 复位
+			//#2. 复位
 			HAL_NVIC_SystemReset();
     }
     HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);

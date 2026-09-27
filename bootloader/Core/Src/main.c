@@ -20,6 +20,7 @@
 #include "main.h"
 #include "usart.h"
 #include "gpio.h"
+#include "flash_ops.h"
 
 /* Private includes ----------------------------------------------------------*/
 /* USER CODE BEGIN Includes */
@@ -103,7 +104,7 @@ int main(void)
     Error_Handler();
   }
 
-  if (*(volatile uint32_t *)FLAG_ADDR == UPGRADE_FLAG)
+  if (FlashOps_IsUpgradeFlagSet(FLAG_ADDR, UPGRADE_FLAG))
   {
     HAL_UART_Transmit(&huart1, (uint8_t *)upgrade_mode_msg,sizeof(upgrade_mode_msg) - 1U, HAL_MAX_DELAY);
 		int i =0;
@@ -113,22 +114,14 @@ int main(void)
 			HAL_Delay(1000);
 		}
 		HAL_UART_Transmit(&huart1, (uint8_t *)"Updata finish\r\n",sizeof("Updata finish\r\n") - 1U, HAL_MAX_DELAY);
-    
-		//#1. 解锁FLASH
-			HAL_FLASH_Unlock();
 			
-			//#2. 擦除目标页
-			FLASH_EraseInitTypeDef erase_cfg = {0};
-			uint32_t page_error = 0;
-			erase_cfg.TypeErase   = FLASH_TYPEERASE_PAGES;
-			erase_cfg.PageAddress = FLAG_ADDR;
-			erase_cfg.NbPages     = 1;
-			HAL_FLASHEx_Erase(&erase_cfg, &page_error);
+			//#1. 清除升级标志
+			if (FlashOps_ClrUpgradeFlag(FLAG_ADDR) != FLASH_OPS_OK)
+			{
+			  Error_Handler();
+			}
 			
-			//#3. 上锁
-			HAL_FLASH_Lock();
-			
-			//#4. 复位
+			//#2. 复位
 			HAL_NVIC_SystemReset();
 			
   }
