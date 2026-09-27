@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "flash.h"
 #include "usart.h"
 #include "gpio.h"
 
@@ -61,8 +62,6 @@ static void JumpToApp(uint32_t app_address);
 
 #define APP_A_ADDRESS 0x08004000U
 #define APP_B_ADDRESS 0x08009800U
-#define FLAG_ADDR 0x0800F000U
-#define UPGRADE_FLAG 0x55AA55AAU
 
 /* USER CODE END 0 */
 
@@ -103,7 +102,7 @@ int main(void)
     Error_Handler();
   }
 
-  if (*(volatile uint32_t *)FLAG_ADDR == UPGRADE_FLAG)
+  if (Flash_IsUpgradeFlagSet() != 0U)
   {
     HAL_UART_Transmit(&huart1, (uint8_t *)upgrade_mode_msg,sizeof(upgrade_mode_msg) - 1U, HAL_MAX_DELAY);
 		int i =0;
@@ -114,21 +113,8 @@ int main(void)
 		}
 		HAL_UART_Transmit(&huart1, (uint8_t *)"Updata finish\r\n",sizeof("Updata finish\r\n") - 1U, HAL_MAX_DELAY);
     
-		//#1. 解锁FLASH
-			HAL_FLASH_Unlock();
-			
-			//#2. 擦除目标页
-			FLASH_EraseInitTypeDef erase_cfg = {0};
-			uint32_t page_error = 0;
-			erase_cfg.TypeErase   = FLASH_TYPEERASE_PAGES;
-			erase_cfg.PageAddress = FLAG_ADDR;
-			erase_cfg.NbPages     = 1;
-			HAL_FLASHEx_Erase(&erase_cfg, &page_error);
-			
-			//#3. 上锁
-			HAL_FLASH_Lock();
-			
-			//#4. 复位
+		(void)Flash_ClearUpgradeFlag();
+		
 			HAL_NVIC_SystemReset();
 			
   }

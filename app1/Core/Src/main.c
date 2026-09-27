@@ -18,6 +18,7 @@
 /* USER CODE END Header */
 /* Includes ------------------------------------------------------------------*/
 #include "main.h"
+#include "flash.h"
 #include "dma.h"
 #include "usart.h"
 #include "gpio.h"
@@ -55,20 +56,6 @@ void SystemClock_Config(void);
 
 /* Private user code ---------------------------------------------------------*/
 /* USER CODE BEGIN 0 */
-/*
- * -------------------------------------------------------
- * 内存映射 (Memory Map)
- * -------------------------------------------------------
- * 分区名称      起始地址         大小(HEX)   大小(DEC)
- * -------------------------------------------------------
- * Bootloader    0x8000000       0x4000      16KB
- * A区 (主)      0x8004000       0x5800      22KB
- * B区 (备)      0x8009800       0x5800      22KB
- * 参数区        0x800F000       0x1000      4KB
- * -------------------------------------------------------
- */
-	#define FLAG_ADDR 0x0800F000U  		// 升级标志位地址
-	#define UPGRADE_FLAG 0x55AA55AAU  // 升级魔数	
 /* USER CODE END 0 */
 
 /**
@@ -134,24 +121,9 @@ int main(void)
                                 USART1_GetRxLength(),
                                 100U);                                                   //回显收到的原始内容
       }
-      //#1. 解锁FLASH
-			HAL_FLASH_Unlock();
+			(void)Flash_ClearUpgradeFlag();
+			(void)Flash_SetUpgradeFlag();
 			
-			//#2. 擦除目标页
-			FLASH_EraseInitTypeDef erase_cfg = {0};
-			uint32_t page_error = 0;
-			erase_cfg.TypeErase   = FLASH_TYPEERASE_PAGES;
-			erase_cfg.PageAddress = FLAG_ADDR;
-			erase_cfg.NbPages     = 1;
-			HAL_FLASHEx_Erase(&erase_cfg, &page_error);
-			
-			//#3. 写入数据
-			HAL_FLASH_Program(FLASH_TYPEPROGRAM_WORD, FLAG_ADDR, UPGRADE_FLAG);
-			
-			//#4. 上锁
-			HAL_FLASH_Lock();
-			
-			//#5. 复位
 			HAL_NVIC_SystemReset();
     }
     HAL_GPIO_TogglePin(LED_GPIO_Port, LED_Pin);
